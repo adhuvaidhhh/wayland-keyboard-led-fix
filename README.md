@@ -5,38 +5,37 @@
 
 ![Fedora](https://img.shields.io/badge/Fedora-43-blue?logo=fedora) ![GNOME](https://img.shields.io/badge/GNOME-49-green?logo=gnome) ![Wayland](https://img.shields.io/badge/Display-Wayland-orange)
 
-A lightweight, persistent solution for enabling keyboard backlights controlled by the Scroll Lock LED on Fedora Workstation. This fix solves the common issue where the backlight turns off automatically when **Caps Lock** or other modifiers are pressed under Wayland.
+A lightweight, persistent solution for forcing keyboard backlights (Scroll Lock LED) to stay active on Fedora. This fixes the issue where the backlight turns off automatically when **Caps Lock** or other modifiers are pressed in a Wayland environment.
 
 ---
 
-## 🔍 The Problem
-On modern Linux distributions using **Wayland** (like Fedora 43), the traditional `xset led on` command no longer works. Furthermore, many keyboards sync all LEDs at a firmware level. When you toggle Caps Lock, the system sends a refresh signal that resets the Scroll Lock LED (and your backlight) to the "off" state.
+## 🔍 The Logic
+Under **Wayland/GNOME 49**, the display compositor (Mutter) manages keyboard states strictly. When you toggle Caps Lock, the kernel refreshes all keyboard LEDs. Since the software state of "Scroll Lock" is usually off, the backlight (which is wired to that LED) turns off. 
 
-## 🚀 SEO Keywords
-`Fedora 43 keyboard backlight fix`, `GNOME 49 scroll lock LED`, `Wayland keyboard light won't stay on`, `Linux keyboard backlight caps lock fix`, `enable keyboard light terminal command`.
+This project uses a high-priority background service to monitor the `/sys/class/leds/` interface and force the brightness back to `1` instantly if a change is detected.
+
+
 
 ---
 
 ## 🛠 Installation Roadmap
 
-This process creates a high-priority background service that monitors your keyboard and forces the backlight to stay on with near-zero latency.
-
-### 1. Create the Monitoring Script
-This script checks the LED status 10 times per second and forces it back to "1" (on) if it ever drops to "0".
+### Step 1: Create the Monitoring Script
+This script uses a loop to check the LED brightness every 0.1 seconds.
 
 ```bash
 sudo nano /usr/local/bin/kb-light-lock
 ```
 
-**Paste the following code:**
+**Paste this code:**
 ```bash
 #!/bin/bash
-# Wait until the keyboard hardware is initialized
+# Wait for hardware initialization
 until ls /sys/class/leds/*::scrolllock/brightness >/dev/null 2>&1; do 
     sleep 1
 done
 
-# Continuous monitoring loop
+# Force-on loop
 while true; do
     if [ "$(cat /sys/class/leds/*::scrolllock/brightness)" -eq 0 ]; then
         echo 1 > /sys/class/leds/*::scrolllock/brightness
@@ -45,29 +44,29 @@ while true; do
 done
 ```
 
-### 2. Set Executive Permissions
+### Step 2: Permissions & Security
+Make the script executable and ensure Fedora's security policies allow it to run.
 ```bash
 sudo chmod +x /usr/local/bin/kb-light-lock
 ```
 
-### 3. Create the Systemd Service
-This ensures the script starts automatically when you reach the login screen and survives every reboot.
+### Step 3: Create the Systemd Service
+This ensures the light stays on even after a reboot.
 
 ```bash
 sudo nano /etc/systemd/system/kb-light.service
 ```
 
-**Paste the following configuration:**
+**Paste this configuration:**
 ```ini
 [Unit]
-Description=Force Keyboard Backlight Always On
+Description=Lock Keyboard Backlight Always On
 After=display-manager.service
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/kb-light-lock
-# High priority ensures the light turns back on instantly
 Nice=-20
 Restart=always
 RestartSec=1
@@ -76,9 +75,7 @@ RestartSec=1
 WantedBy=graphical.target
 ```
 
-### 4. Enable and Activate
-Run these commands to tell Fedora to load the new service immediately and on every boot.
-
+### Step 4: Final Activation
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now kb-light.service
@@ -86,26 +83,31 @@ sudo systemctl enable --now kb-light.service
 
 ---
 
-## 📋 Features
-- **Persistence:** Works automatically after reboot and logout.
-- **Fast Recovery:** Uses `Nice=-20` priority to minimize the "flicker" when pressing Caps Lock.
-- **Efficient:** Uses minimal CPU resources by only writing to the hardware when a state change is detected.
-- **Wayland Ready:** Bypasses X11 limitations by talking directly to the Linux Kernel LED class.
-
-## ⚠️ Troubleshooting
-If the light does not come on after a reboot:
-1. **Check Service Status:** `systemctl status kb-light.service`
-2. **SELinux Permissions:** If Fedora blocks the script, run:
-   ```bash
-   sudo restorecon -v /etc/systemd/system/kb-light.service
-   ```
-3. **Manual Override:** You can manually check if your hardware supports this path with:
-   ```bash
-   ls /sys/class/leds/*::scrolllock/
-   ```
+## 📊 Technical Features
+- **Low Latency:** `Nice=-20` ensures the "off" flicker is nearly invisible.
+- **Boot Persistent:** Starts automatically at the login screen.
+- **Resource Optimized:** Uses minimal CPU by only writing to hardware on state change.
+```
 
 ---
 
-## 🤝 Contributing
-If you have a more efficient way to lock LED registers on Fedora 43, feel free to open a Pull Request!
+### 💡 Why this works (Understanding the Hardware)
+Most backlit keyboards that use the "Scroll Lock" key to toggle the light are essentially using a "hack" at the hardware level. In a modern OS like Fedora 43:
 
+1.  **The Kernel** sees your keyboard as a collection of LEDs (Caps, Num, Scroll).
+2.  **Wayland** doesn't allow applications to "fake" keypresses for security.
+3.  **The Service** we built acts as a "Hardware Watchdog." By monitoring `/sys/class/leds/`, it bypasses the desktop environment entirely and talks directly to the kernel driver.
+
+
+
+### 🔍 Verification Checklist
+* **Reboot test:** The light should come on automatically about 2-3 seconds after the login screen appears.
+* **Caps Lock test:** Pressing Caps Lock should cause no visible change, or a very tiny "blink" that lasts less than 100ms.
+* **Audio check:** Because the script is lightweight, it should not interfere with your "Studio Quality" audio setup (PipeWire/EasyEffects).
+
+[Journey of a keypress in Linux](https://www.youtube.com/watch?v=LsX3ObDUGhU)
+
+This video provides a deep dive into how the Linux kernel handles input events from your keyboard to the screen, which helps explain why we need to bypass the standard input stack to keep your LEDs on.
+
+
+http://googleusercontent.com/youtube_content/0
