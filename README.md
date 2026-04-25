@@ -21,7 +21,7 @@ This project uses a high-priority background service to monitor the `/sys/class/
 ## 🛠 Installation Roadmap
 
 ### Step 1: Create the Monitoring Script
-This script uses a loop to check the LED brightness every 0.1 seconds.
+This script uses a loop to check the LED brightness every 0.000001 seconds.
 
 ```bash
 sudo nano /usr/local/bin/kb-light-lock
@@ -40,7 +40,7 @@ while true; do
     if [ "$(cat /sys/class/leds/*::scrolllock/brightness)" -eq 0 ]; then
         echo 1 > /sys/class/leds/*::scrolllock/brightness
     fi
-    sleep 0.1
+    sleep 0.0000001
 done
 ```
 
