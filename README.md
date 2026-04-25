@@ -1,4 +1,4 @@
-Your **README.md** file is ready. I have structured this to be a high-quality GitHub repository, including SEO headers, clear installation steps, and technical explanations.
+
 
 ```markdown
 # Fedora Keyboard Backlight Fix (Wayland/GNOME 49)
@@ -109,6 +109,3 @@ If the light does not come on after a reboot:
 ## 🤝 Contributing
 If you have a more efficient way to lock LED registers on Fedora 43, feel free to open a Pull Request!
 
-## 📜 License
-MIT License - Free to use and modify.
-```
